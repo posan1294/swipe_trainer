@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>チャートスワイプトレーナー</title>
+  <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:      #0a0e14;
+      --card:    #111720;
+      --card2:   #0d1219;
+      --border:  rgba(255,255,255,0.07);
+      --dim:     #3d4451;
+      --sub:     #6e7681;
+      --up:      #ef5350;
+      --down:    #26a69a;
+      --ma5:     #ff9f43;
+      --ma25:    #ffd32a;
+      --ma75:    #54a0ff;
+      --ma200:   #9b71ea;
+      --accent:  #ffc832;
+    }
+    body {
+      background: var(--bg);
+      color: #e6edf3;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      user-select: none;
+      touch-action: none;
+    }
+
+    /* ── スコアバー（コンパクト） ── */
+    #score-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-around;
+      padding: 5px 10px;
+      background: var(--card2);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .sc { display: flex; flex-direction: column; align-items: center; flex: 1; }
+    .sc + .sc { border-left: 1px solid var(--border); }
+    .sc-lbl { font-size: 8px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.6px; }
+    .sc-val { font-size: 18px; font-weight: 700; line-height: 1.2; }
+    #v-progress { color: #e6edf3; }
+    #v-correct  { color: #3fb950; }
+    #v-rate     { color: #58a6ff; }
+    #v-streak   { color: var(--accent); }
+
+    /* セット進捗バー */
+    #progress-bar-wrap {
+      height: 2px;
+      background: rgba(255,255,255,0.06);
+      flex-shrink: 0;
+    }
+    #progress-bar {
+      height: 100%;
+      background: #58a6ff;
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+
+    /* ── カードエリア ── */
+    #card-area {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      padding: 6px 12px 4px;
+      overflow: hidden;
+      min-height: 0;
+    }
+    #next-card {
+      position: absolute;
+      width: calc(100% - 32px);
+      max-width: 540px;
+      height: 90%;
+      background: var(--card2);
+      border-radius: 22px;
+      border: 1px solid var(--border);
+      transform: scale(0.94) translateY(12px);
+      z-index: 0;
+    }
+    #main-card {
+      position: relative;
+      width: 100%;
+      max-width: 540px;
+      height: 90%;
+      background: var(--card);
+      border-radius: 22px;
+      border: 1px solid rgba(255,255,255,0.09);
+      box-shadow: 0 4px 24px rgba(0,0,0,0.4), 0 1px 0 rgba(255,255,255,0.04) inset;
+      z-index: 1;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      will-change: transform, opacity;
+    }
+
+    /* MA凡例 */
+    #ma-legend {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 5px 10px 3px;
+      flex-shrink: 0;
+    }
+    .ma-item { display: flex; align-items: center; gap: 4px; font-size: 9px; font-weight: 500; }
+    .ma-line { width: 16px; height: 2px; border-radius: 1px; flex-shrink: 0; }
+
+    /* スワイプラベル */
+    .swipe-label {
+      position: absolute; top: 34px;
+      font-size: 18px; font-weight: 900;
+      padding: 4px 12px; border-radius: 7px; border: 2px solid;
+      opacity: 0; pointer-events: none; z-index: 10; letter-spacing: 1.5px;
+    }
+    #label-up   { right: 14px; color: #3fb950; border-color: #3fb950; background: rgba(63,185,80,0.1); }
+    #label-down { left: 14px;  color: #f85149; border-color: #f85149; background: rgba(248,81,73,0.1); }
+
+    /* チャート */
+    #chart { flex: 1; min-height: 0; padding: 0 2px 2px; }
+
+    /* ローディング */
+    #loading {
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 12px; background: var(--card);
+      border-radius: 22px; z-index: 20;
+      font-size: 13px; color: var(--sub);
+    }
+    .spinner {
+      width: 32px; height: 32px;
+      border: 2.5px solid rgba(255,255,255,0.07);
+      border-top-color: #58a6ff;
+      border-radius: 50%;
+      animation: spin 0.75s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* 結果オーバーレイ */
+    #result-overlay {
+      display: none;
+      position: absolute; top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(10,14,20,0.93);
+      backdrop-filter: blur(14px);
+      border-radius: 18px;
+      padding: 16px 24px 14px;
+      text-align: center;
+      z-index: 30;
+      border: 1.5px solid;
+      min-width: 160px;
+      animation: popIn 0.17s cubic-bezier(0.34,1.56,0.64,1);
+    }
+    @keyframes popIn {
+      from { transform: translate(-50%,-50%) scale(0.5); opacity: 0; }
+      to   { transform: translate(-50%,-50%) scale(1);   opacity: 1; }
+    }
+    #result-overlay.correct { border-color: rgba(63,185,80,0.5); }
+    #result-overlay.wrong   { border-color: rgba(248,81,73,0.5); }
+    #r-emoji { font-size: 36px; line-height: 1; }
+    #r-text  { font-size: 16px; font-weight: 700; margin: 5px 0 1px; }
+    #r-pct   { font-size: 32px; font-weight: 800; letter-spacing: -1px; line-height: 1; }
+    #r-divider { height: 1px; background: rgba(255,255,255,0.1); margin: 8px 0 7px; }
+    #r-stock { font-size: 11px; color: #8b949e; line-height: 1.6; }
+    #r-sub   { font-size: 10px; color: var(--dim); margin-top: 6px; }
+
+    /* ── ボタン（控えめ） ── */
+    #buttons {
+      display: flex; gap: 8px;
+      padding: 6px 12px 12px;
+      flex-shrink: 0;
+    }
+    .action-btn {
+      flex: 1; height: 50px;
+      border: 1px solid; border-radius: 14px;
+      cursor: pointer;
+      transition: transform 0.1s, filter 0.1s;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 1px;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .action-btn:active { transform: scale(0.95); filter: brightness(1.2); }
+    .action-btn:disabled { opacity: 0.25; pointer-events: none; }
+    .btn-main { font-size: 15px; font-weight: 700; letter-spacing: 0.8px; }
+    .btn-sub  { font-size: 8px;  font-weight: 400; opacity: 0.55; }
+    #btn-down { background: rgba(248,81,73,0.07); color: #f85149; border-color: rgba(248,81,73,0.3); }
+    #btn-up   { background: rgba(63,185,80,0.07);  color: #3fb950; border-color: rgba(63,185,80,0.3); }
+
+    /* ── 振り返り画面 ── */
+    #review-screen {
+      display: none;
+      position: fixed; inset: 0;
+      background: var(--bg);
+      z-index: 100;
+      flex-direction: column;
+      animation: fadeIn 0.25s ease;
+    }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+    #review-header {
+      padding: 20px 20px 12px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    #review-title { font-size: 13px; color: var(--sub); font-weight: 500; letter-spacing: 0.5px; text-transform: uppercase; }
+    #review-score-main { font-size: 32px; font-weight: 800; margin: 4px 0; letter-spacing: -0.5px; }
+    #review-score-sub  { font-size: 13px; color: var(--sub); }
+
+    #review-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px 12px;
+      -webkit-overflow-scrolling: touch;
+    }
+    .review-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      margin-bottom: 6px;
+      background: var(--card);
+      border: 1px solid var(--border);
+    }
+    .review-item.correct-item { border-color: rgba(63,185,80,0.2); }
+    .review-item.wrong-item   { border-color: rgba(248,81,73,0.15); }
+    .review-icon { font-size: 18px; flex-shrink: 0; }
+    .review-info { flex: 1; min-width: 0; }
+    .review-name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .review-code { font-size: 10px; color: var(--sub); margin-top: 1px; }
+    .review-pct  { font-size: 15px; font-weight: 700; flex-shrink: 0; }
+
+    #review-footer {
+      padding: 10px 16px 20px;
+      flex-shrink: 0;
+    }
+    #btn-next-set {
+      width: 100%; height: 54px;
+      background: #1a6fe8;
+      color: #fff;
+      border: none;
+      border-radius: 16px;
+      font-size: 16px; font-weight: 700;
+      cursor: pointer;
+      transition: filter 0.1s;
+      letter-spacing: 0.5px;
+    }
+    #btn-next-set:active { filter: brightness(1.15); }
+  </style>
+</head>
+<body>
+
+<!-- スコアバー -->
+<div id="score-bar">
+  <div class="sc"><span class="sc-lbl">問題</span><span class="sc-val" id="v-progress">0/10</span></div>
+  <div class="sc"><span class="sc-lbl">正解</span><span class="sc-val" id="v-correct">0</span></div>
+  <div class="sc"><span class="sc-lbl">正解率</span><span class="sc-val" id="v-rate">─</span></div>
+  <div class="sc"><span class="sc-lbl">連続</span><span class="sc-val" id="v-streak">─</span></div>
+</div>
+<div id="progress-bar-wrap"><div id="progress-bar"></div></div>
+
+<!-- カードエリア -->
+<div id="card-area">
+  <div id="next-card"></div>
+  <div id="main-card">
+    <div id="loading"><div class="spinner"></div>チャートを準備中...</div>
+    <div id="ma-legend">
+      <div class="ma-item" style="color:var(--ma5)">
+        <div class="ma-line" style="background:var(--ma5)"></div>MA5
+      </div>
+      <div class="ma-item" style="color:var(--ma25)">
+        <div class="ma-line" style="background:var(--ma25)"></div>MA25
+      </div>
+      <div class="ma-item" style="color:var(--ma75)">
+        <div class="ma-line" style="background:var(--ma75)"></div>MA75
+      </div>
+      <div class="ma-item" style="color:var(--ma200)">
+        <div class="ma-line" style="background:var(--ma200)"></div>MA200
+      </div>
+    </div>
+    <div class="swipe-label" id="label-up">UP ↑</div>
+    <div class="swipe-label" id="label-down">↓ DOWN</div>
+    <div id="chart"></div>
+    <div id="result-overlay">
+      <div id="r-emoji"></div>
+      <div id="r-text"></div>
+      <div id="r-pct"></div>
+      <div id="r-divider"></div>
+      <div id="r-stock"></div>
+      <div id="r-sub"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ボタン -->
+<div id="buttons">
+  <button class="action-btn" id="btn-down" onclick="submitAnswer('down')" disabled>
+    <span class="btn-main">↓ DOWN</span>
+    <span class="btn-sub">+10% 未満</span>
+  </button>
+  <button class="action-btn" id="btn-up" onclick="submitAnswer('up')" disabled>
+    <span class="btn-main">UP ↑</span>
+    <span class="btn-sub">+10% 以上</span>
+  </button>
+</div>
+
+<!-- 振り返り画面 -->
+<div id="review-screen">
+  <div id="review-header">
+    <div id="review-title">セット完了</div>
+    <div id="review-score-main"></div>
+    <div id="review-score-sub"></div>
+  </div>
+  <div id="review-list"></div>
+  <div id="review-footer">
+    <button id="btn-next-set" onclick="startNextSet()">もう10問やる →</button>
+  </div>
+</div>
+
+<script>
+const SET_SIZE = 10;
+let total = 0, correct = 0, streak = 0;
+let setCorrect = 0, setCount = 0;
+let setHistory = [];
+let currentQ   = null;
+let apexChart  = null;
+let isAnswering = false;
+let nextQPromise = null;
+
+const card    = document.getElementById('main-card');
+const loading = document.getElementById('loading');
+const overlay = document.getElementById('result-overlay');
+const labelUp   = document.getElementById('label-up');
+const labelDown = document.getElementById('label-down');
+
+// ── スコア更新 ─────────────────────────────────────────────────────────────────
+function updateScore() {
+  document.getElementById('v-progress').textContent = `${setCount}/${SET_SIZE}`;
+  document.getElementById('v-correct').textContent  = setCorrect;
+  document.getElementById('v-rate').textContent     = setCount > 0 ? Math.round(setCorrect/setCount*100)+'%' : '─';
+  document.getElementById('v-streak').textContent   = streak > 0 ? streak+'🔥' : '─';
+  document.getElementById('progress-bar').style.width = (setCount / SET_SIZE * 100) + '%';
+}
+
+// ── データ取得 ─────────────────────────────────────────────────────────────────
+async function fetchQuestion() {
+  const res = await fetch('/api/question');
+  if (!res.ok) throw new Error('fetch failed');
+  const d = await res.json();
+  if (d.error) throw new Error(d.error);
+  return d;
+}
+
+// ── チャート ──────────────────────────────────────────────────────────────────
+function buildOptions(q) {
+  return {
+    series: [
+      { name: 'OHLC',  type: 'candlestick', data: q.candles },
+      { name: 'MA5',   type: 'line', data: q.ma5   },
+      { name: 'MA25',  type: 'line', data: q.ma25  },
+      { name: 'MA75',  type: 'line', data: q.ma75  },
+      { name: 'MA200', type: 'line', data: q.ma200 },
+    ],
+    chart: {
+      type: 'line', height: '100%', background: 'transparent',
+      toolbar: { show: false }, animations: { enabled: false },
+      zoom: { enabled: false }, selection: { enabled: false },
+    },
+    plotOptions: {
+      candlestick: {
+        colors: { upward: '#ef5350', downward: '#26a69a' },
+        wick: { useFillColor: true },
+      },
+    },
+    // MA5=太め, MA25=中, MA75=細め, MA200=最細
+    colors: ['#26a69a', '#ff9f43', '#ffd32a', '#54a0ff', '#9b71ea'],
+    stroke: {
+      width:     [1, 1.8, 1.5, 1.1, 0.9],
+      curve:     ['straight', 'smooth', 'smooth', 'smooth', 'smooth'],
+      dashArray: [0, 0, 0, 0, 0],
+    },
+    xaxis: {
+      type: 'numeric',
+      labels: { show: false }, axisTicks: { show: false },
+      axisBorder: { show: false }, tooltip: { enabled: false },
+    },
+    yaxis: {
+      opposite: true, tickAmount: 4,
+      labels: {
+        style: { colors: '#3d4451', fontSize: '10px' },
+        offsetX: -6,
+        formatter: v => {
+          if (v >= 100000) return (v/1000).toFixed(0)+'k';
+          if (v >= 10000)  return (v/1000).toFixed(1)+'k';
+          if (v >= 1000)   return (v/1000).toFixed(2)+'k';
+          return v.toFixed(0);
+        },
+      },
+    },
+    grid: {
+      borderColor: 'rgba(255,255,255,0.035)',
+      xaxis: { lines: { show: false } },
+      yaxis: { lines: { show: true  } },
+      padding: { top: 4, right: 2, bottom: 0, left: 0 },
+    },
+    legend: { show: false }, tooltip: { enabled: false },
+    theme: { mode: 'dark' },
+    annotations: {
+      xaxis: [{
+        x: q.cut_x,
+        borderColor: 'rgba(255,200,80,0.3)',
+        borderWidth: 1, strokeDashArray: 6,
+        label: {
+          text: '予想',
+          position: 'top', orientation: 'horizontal',
+          style: {
+            color: 'rgba(255,200,80,0.5)', background: 'transparent',
+            fontSize: '9px', fontWeight: 600,
+            padding: { top: 0, bottom: 2, left: 4, right: 4 },
+          },
+        },
+      }],
+    },
+  };
+}
+
+function renderChart(q) {
+  if (apexChart) { apexChart.destroy(); apexChart = null; }
+  apexChart = new ApexCharts(document.getElementById('chart'), buildOptions(q));
+  apexChart.render();
+}
+
+function revealChart(q) {
+  if (!apexChart) return;
+  apexChart.updateSeries([
+    { name: 'OHLC',  type: 'candlestick', data: [...q.candles, ...q.reveal_candles] },
+    { name: 'MA5',   type: 'line', data: q.ma5   },
+    { name: 'MA25',  type: 'line', data: q.ma25  },
+    { name: 'MA75',  type: 'line', data: q.ma75  },
+    { name: 'MA200', type: 'line', data: q.ma200 },
+  ]);
+}
+
+// ── 問題ロード ─────────────────────────────────────────────────────────────────
+async function loadQuestion(q) {
+  currentQ = q;
+  overlay.style.display = 'none';
+  loading.style.display = 'flex';
+  loading.innerHTML = '<div class="spinner"></div>チャートを準備中...';
+  document.getElementById('chart').style.visibility = 'hidden';
+  setButtons(true);
+  await new Promise(r => setTimeout(r, 30));
+  renderChart(q);
+  loading.style.display = 'none';
+  document.getElementById('chart').style.visibility = 'visible';
+  setButtons(false);
+  nextQPromise = fetchQuestion().catch(() => null);
+}
+
+function setButtons(d) {
+  document.getElementById('btn-up').disabled   = d;
+  document.getElementById('btn-down').disabled = d;
+}
+
+// ── 回答処理 ──────────────────────────────────────────────────────────────────
+async function submitAnswer(answer) {
+  if (isAnswering || !currentQ) return;
+  isAnswering = true;
+  setButtons(true);
+
+  const isCorrect = answer === currentQ.answer;
+  total++;
+  setCount++;
+  if (isCorrect) { correct++; setCorrect++; streak++; } else { streak = 0; }
+
+  // 履歴に記録
+  setHistory.push({
+    isCorrect,
+    stock_code: currentQ.stock_code,
+    stock_name: currentQ.stock_name,
+    period:     currentQ.period,
+    actual_pct: currentQ.actual_pct,
+  });
+
+  updateScore();
+
+  // カードを飛ばす
+  card.style.transition = 'transform 0.3s cubic-bezier(0.36,0.66,0.04,1), opacity 0.3s ease';
+  card.style.transform  = answer === 'up' ? 'translateX(140%) rotate(20deg)' : 'translateX(-140%) rotate(-20deg)';
+  card.style.opacity = '0';
+  await new Promise(r => setTimeout(r, 300));
+
+  // カードを戻す
+  card.style.transition = 'none';
+  card.style.transform  = '';
+  card.style.opacity    = '1';
+  card.offsetHeight;
+
+  // 未来チャートを表示
+  revealChart(currentQ);
+
+  // 結果オーバーレイ
+  const pct  = currentQ.actual_pct;
+  const sign = pct >= 0 ? '+' : '';
+  const isLast = setCount >= SET_SIZE;
+
+  overlay.className = isCorrect ? 'correct' : 'wrong';
+  document.getElementById('r-emoji').textContent = isCorrect ? '✅' : '❌';
+  document.getElementById('r-text').textContent  = isCorrect ? '正解！' : '不正解';
+  document.getElementById('r-pct').textContent   = sign + pct + '%';
+  document.getElementById('r-pct').style.color   = pct >= 0 ? '#ef5350' : '#26a69a';
+  document.getElementById('r-stock').innerHTML   =
+    `${currentQ.stock_code} ${currentQ.stock_name}<br>${currentQ.period}`;
+  document.getElementById('r-sub').textContent   = isLast ? '振り返りへ...' : '次の問題へ...';
+  overlay.style.display = 'block';
+
+  const nextQFetch = nextQPromise || fetchQuestion();
+  await new Promise(r => setTimeout(r, isLast ? 2800 : 2500));
+
+  overlay.style.display = 'none';
+
+  if (isLast) {
+    showReview();
+    return;
+  }
+
+  // 次問題へ
+  let nextQ = null;
+  try { nextQ = await nextQFetch; } catch(e) {}
+  if (!nextQ) try { nextQ = await fetchQuestion(); } catch(e) {}
+
+  isAnswering = false;
+
+  if (nextQ) {
+    await loadQuestion(nextQ);
+  } else {
+    loading.style.display = 'flex';
+    loading.innerHTML = '<div class="spinner"></div>データ再取得中...';
+    await new Promise(r => setTimeout(r, 2500));
+    try { const q = await fetchQuestion(); await loadQuestion(q); }
+    catch(e) { loading.innerHTML = '⚠️ 取得失敗。リロードしてください。'; }
+  }
+}
+
+// ── 振り返り画面 ──────────────────────────────────────────────────────────────
+function showReview() {
+  // スコアヘッダー
+  const rate = Math.round(setCorrect / SET_SIZE * 100);
+  document.getElementById('review-score-main').textContent = `${setCorrect} / ${SET_SIZE} 正解`;
+  document.getElementById('review-score-sub').textContent  = `正解率 ${rate}%`;
+
+  // リスト
+  const list = document.getElementById('review-list');
+  list.innerHTML = '';
+  setHistory.forEach((h, i) => {
+    const sign = h.actual_pct >= 0 ? '+' : '';
+    const item = document.createElement('div');
+    item.className = `review-item ${h.isCorrect ? 'correct-item' : 'wrong-item'}`;
+    item.innerHTML = `
+      <div class="review-icon">${h.isCorrect ? '✅' : '❌'}</div>
+      <div class="review-info">
+        <div class="review-name">${h.stock_name}</div>
+        <div class="review-code">${h.stock_code} · ${h.period}</div>
+      </div>
+      <div class="review-pct" style="color:${h.actual_pct >= 0 ? '#ef5350' : '#26a69a'}">
+        ${sign}${h.actual_pct}%
+      </div>
+    `;
+    list.appendChild(item);
+  });
+
+  document.getElementById('review-screen').style.display = 'flex';
+}
+
+function startNextSet() {
+  // リセット
+  setCount = 0; setCorrect = 0; streak = 0;
+  setHistory = [];
+  updateScore();
+  document.getElementById('review-screen').style.display = 'none';
+  isAnswering = false;
+
+  // 新しい問題を読み込む
+  loading.style.display = 'flex';
+  loading.innerHTML = '<div class="spinner"></div>チャートを準備中...';
+  setButtons(true);
+  fetchQuestion()
+    .then(q => loadQuestion(q))
+    .catch(() => { loading.innerHTML = '⚠️ 取得失敗。リロードしてください。'; });
+}
+
+// ── スワイプ ──────────────────────────────────────────────────────────────────
+let touchStartX = 0, touchDeltaX = 0, isTouching = false;
+
+card.addEventListener('touchstart', e => {
+  if (isAnswering) return;
+  touchStartX = e.touches[0].clientX; touchDeltaX = 0; isTouching = true;
+  card.style.transition = 'none';
+}, { passive: true });
+
+card.addEventListener('touchmove', e => {
+  if (!isTouching || isAnswering) return;
+  touchDeltaX = e.touches[0].clientX - touchStartX;
+  card.style.transform = `translateX(${touchDeltaX}px) rotate(${touchDeltaX * 0.022}deg)`;
+  const prog = Math.min(Math.abs(touchDeltaX) / 80, 1);
+  if      (touchDeltaX >  20) { labelUp.style.opacity = prog;  labelDown.style.opacity = 0; }
+  else if (touchDeltaX < -20) { labelDown.style.opacity = prog; labelUp.style.opacity = 0; }
+  else    { labelUp.style.opacity = labelDown.style.opacity = 0; }
+}, { passive: true });
+
+card.addEventListener('touchend', () => {
+  if (!isTouching || isAnswering) return;
+  isTouching = false;
+  labelUp.style.opacity = labelDown.style.opacity = 0;
+  if      (touchDeltaX >  80) { submitAnswer('up');   }
+  else if (touchDeltaX < -80) { submitAnswer('down'); }
+  else {
+    card.style.transition = 'transform 0.25s cubic-bezier(0.34,1.56,0.64,1)';
+    card.style.transform  = '';
+  }
+});
+
+// ── 起動 ──────────────────────────────────────────────────────────────────────
+updateScore();
+(async () => {
+  for (let i = 0; i < 3; i++) {
+    try { const q = await fetchQuestion(); await loadQuestion(q); return; }
+    catch(e) { await new Promise(r => setTimeout(r, 2000)); }
+  }
+  loading.innerHTML = '⚠️ データ取得失敗。リロードしてください。';
+})();
+</script>
+</body>
+</html>
