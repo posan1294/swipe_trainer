@@ -32,9 +32,9 @@ STOCK_NAMES = {
 }
 
 STOCKS_JP    = list(STOCK_NAMES.keys())
-DISPLAY_DAYS = 400
-PREDICT_DAYS = 120
-THRESHOLD    = 0.10
+DISPLAY_DAYS = 80
+PREDICT_DAYS = 80
+THRESHOLD    = 0.0
 
 
 @lru_cache(maxsize=50)
@@ -45,10 +45,9 @@ def _fetch(ticker_code: str):
             return None
         if isinstance(df.columns, pd.MultiIndex):
             df.columns = df.columns.get_level_values(0)
-        df = df[["Open", "High", "Low", "Close"]].dropna()
+        df = df[["Open", "High", "Low", "Close", "Volume"]].dropna(subset=["Close"])
         if len(df) < DISPLAY_DAYS + PREDICT_DAYS + 50:
             return None
-        df["MA5"]   = df["Close"].rolling(5).mean()
         df["MA25"]  = df["Close"].rolling(25).mean()
         df["MA75"]  = df["Close"].rolling(75).mean()
         df["MA200"] = df["Close"].rolling(200).mean()
@@ -75,7 +74,7 @@ def generate_question():
         display = df.iloc[cut_idx - DISPLAY_DAYS : cut_idx]
         future  = df.iloc[cut_idx : cut_idx + PREDICT_DAYS]
 
-        if len(display) < 200 or len(future) < PREDICT_DAYS:
+        if len(display) < DISPLAY_DAYS or len(future) < PREDICT_DAYS:
             continue
 
         def to_candles(df_slice, offset=0):
@@ -97,10 +96,17 @@ def generate_question():
                     out.append({"x": i + 1, "y": round(float(row[col]), 2)})
             return out
 
+        def to_volume(df_slice, offset=0):
+            out = []
+            for i, (_, row) in enumerate(df_slice.iterrows()):
+                v = row["Volume"]
+                out.append({"x": offset + i + 1, "y": int(v) if pd.notna(v) else 0})
+            return out
+
         price_start = float(display["Close"].iloc[-1])
         price_end   = float(future["Close"].iloc[-1])
         actual_pct  = (price_end - price_start) / price_start
-        answer      = "up" if actual_pct >= THRESHOLD else "down"
+        answer      = "up" if actual_pct > THRESHOLD else "down"
 
         # 時期：チャート末尾の年月（予想開始時点）
         cut_date = display.index[-1]
@@ -111,7 +117,8 @@ def generate_question():
         return {
             "candles":        to_candles(display),
             "reveal_candles": to_candles(future, offset=DISPLAY_DAYS),
-            "ma5":            to_line("MA5"),
+            "volume":         to_volume(display),
+            "reveal_volume":  to_volume(future, offset=DISPLAY_DAYS),
             "ma25":           to_line("MA25"),
             "ma75":           to_line("MA75"),
             "ma200":          to_line("MA200"),

@@ -8,19 +8,16 @@
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
-      --bg:      #0a0e14;
-      --card:    #111720;
-      --card2:   #0d1219;
-      --border:  rgba(255,255,255,0.07);
-      --dim:     #3d4451;
-      --sub:     #6e7681;
-      --up:      #ef5350;
-      --down:    #26a69a;
-      --ma5:     #ff9f43;
-      --ma25:    #ffd32a;
-      --ma75:    #54a0ff;
-      --ma200:   #9b71ea;
-      --accent:  #ffc832;
+      --bg:    #0a0e14;
+      --card:  #111720;
+      --card2: #0d1219;
+      --border: rgba(255,255,255,0.07);
+      --dim:   #3d4451;
+      --sub:   #6e7681;
+      --accent: #ffc832;
+      --ma25:  #ffd32a;
+      --ma75:  #54a0ff;
+      --ma200: #9b71ea;
     }
     body {
       background: var(--bg);
@@ -34,37 +31,28 @@
       touch-action: none;
     }
 
-    /* ── スコアバー（コンパクト） ── */
+    /* ── スコアバー ── */
     #score-bar {
       display: flex;
       align-items: center;
       justify-content: space-around;
-      padding: 5px 10px;
+      padding: 3px 10px;
       background: var(--card2);
       border-bottom: 1px solid var(--border);
       flex-shrink: 0;
     }
     .sc { display: flex; flex-direction: column; align-items: center; flex: 1; }
     .sc + .sc { border-left: 1px solid var(--border); }
-    .sc-lbl { font-size: 8px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.6px; }
-    .sc-val { font-size: 18px; font-weight: 700; line-height: 1.2; }
+    .sc-lbl { font-size: 7px; color: var(--dim); text-transform: uppercase; letter-spacing: 0.6px; }
+    .sc-val { font-size: 15px; font-weight: 700; line-height: 1.2; }
     #v-progress { color: #e6edf3; }
     #v-correct  { color: #3fb950; }
     #v-rate     { color: #58a6ff; }
     #v-streak   { color: var(--accent); }
 
     /* セット進捗バー */
-    #progress-bar-wrap {
-      height: 2px;
-      background: rgba(255,255,255,0.06);
-      flex-shrink: 0;
-    }
-    #progress-bar {
-      height: 100%;
-      background: #58a6ff;
-      width: 0%;
-      transition: width 0.3s ease;
-    }
+    #progress-bar-wrap { height: 2px; background: rgba(255,255,255,0.06); flex-shrink: 0; }
+    #progress-bar { height: 100%; background: #58a6ff; width: 0%; transition: width 0.3s ease; }
 
     /* ── カードエリア ── */
     #card-area {
@@ -109,11 +97,17 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 10px;
-      padding: 5px 10px 3px;
+      gap: 8px;
+      padding: 4px 10px 2px;
       flex-shrink: 0;
     }
-    .ma-item { display: flex; align-items: center; gap: 4px; font-size: 9px; font-weight: 500; }
+    .ma-item {
+      display: flex; align-items: center; gap: 4px;
+      font-size: 9px; font-weight: 500;
+      cursor: pointer; padding: 2px 6px; border-radius: 6px;
+      transition: opacity 0.15s;
+    }
+    .ma-item.off { opacity: 0.25; }
     .ma-line { width: 16px; height: 2px; border-radius: 1px; flex-shrink: 0; }
 
     /* スワイプラベル */
@@ -147,42 +141,45 @@
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* 結果オーバーレイ */
-    #result-overlay {
+    /* ── 結果パネル ── */
+    #result-panel {
       display: none;
-      position: absolute; top: 50%; left: 50%;
-      transform: translate(-50%, -50%);
-      background: rgba(10,14,20,0.93);
-      backdrop-filter: blur(14px);
-      border-radius: 18px;
-      padding: 16px 24px 14px;
-      text-align: center;
-      z-index: 30;
-      border: 1.5px solid;
-      min-width: 160px;
-      animation: popIn 0.17s cubic-bezier(0.34,1.56,0.64,1);
+      flex-direction: column;
+      gap: 4px;
+      padding: 10px 16px 8px;
+      background: var(--card2);
+      border-top: 1px solid var(--border);
+      flex-shrink: 0;
     }
-    @keyframes popIn {
-      from { transform: translate(-50%,-50%) scale(0.5); opacity: 0; }
-      to   { transform: translate(-50%,-50%) scale(1);   opacity: 1; }
+    #result-panel.correct { border-top-color: rgba(63,185,80,0.4); }
+    #result-panel.wrong   { border-top-color: rgba(248,81,73,0.3); }
+    .rp-row { display: flex; align-items: center; justify-content: space-between; }
+    #rp-verdict { font-size: 16px; font-weight: 700; }
+    #rp-pct    { font-size: 22px; font-weight: 800; letter-spacing: -0.5px; }
+    #rp-stock  { font-size: 11px; color: var(--sub); }
+    #btn-next {
+      width: 100%; height: 42px;
+      background: rgba(88,166,255,0.1);
+      color: #58a6ff;
+      border: 1px solid rgba(88,166,255,0.3);
+      border-radius: 12px;
+      font-size: 14px; font-weight: 700;
+      cursor: pointer;
+      margin-top: 6px;
+      transition: filter 0.1s;
+      letter-spacing: 0.3px;
+      -webkit-tap-highlight-color: transparent;
     }
-    #result-overlay.correct { border-color: rgba(63,185,80,0.5); }
-    #result-overlay.wrong   { border-color: rgba(248,81,73,0.5); }
-    #r-emoji { font-size: 36px; line-height: 1; }
-    #r-text  { font-size: 16px; font-weight: 700; margin: 5px 0 1px; }
-    #r-pct   { font-size: 32px; font-weight: 800; letter-spacing: -1px; line-height: 1; }
-    #r-divider { height: 1px; background: rgba(255,255,255,0.1); margin: 8px 0 7px; }
-    #r-stock { font-size: 11px; color: #8b949e; line-height: 1.6; }
-    #r-sub   { font-size: 10px; color: var(--dim); margin-top: 6px; }
+    #btn-next:active { filter: brightness(1.3); }
 
-    /* ── ボタン（控えめ） ── */
+    /* ── ボタン ── */
     #buttons {
       display: flex; gap: 8px;
       padding: 6px 12px 12px;
       flex-shrink: 0;
     }
     .action-btn {
-      flex: 1; height: 50px;
+      flex: 1; height: 42px;
       border: 1px solid; border-radius: 14px;
       cursor: pointer;
       transition: transform 0.1s, filter 0.1s;
@@ -194,7 +191,7 @@
     .action-btn:active { transform: scale(0.95); filter: brightness(1.2); }
     .action-btn:disabled { opacity: 0.25; pointer-events: none; }
     .btn-main { font-size: 15px; font-weight: 700; letter-spacing: 0.8px; }
-    .btn-sub  { font-size: 8px;  font-weight: 400; opacity: 0.55; }
+    .btn-sub  { font-size: 8px; font-weight: 400; opacity: 0.55; }
     #btn-down { background: rgba(248,81,73,0.07); color: #f85149; border-color: rgba(248,81,73,0.3); }
     #btn-up   { background: rgba(63,185,80,0.07);  color: #3fb950; border-color: rgba(63,185,80,0.3); }
 
@@ -208,31 +205,15 @@
       animation: fadeIn 0.25s ease;
     }
     @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-
-    #review-header {
-      padding: 20px 20px 12px;
-      border-bottom: 1px solid var(--border);
-      flex-shrink: 0;
-    }
+    #review-header { padding: 20px 20px 12px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
     #review-title { font-size: 13px; color: var(--sub); font-weight: 500; letter-spacing: 0.5px; text-transform: uppercase; }
     #review-score-main { font-size: 32px; font-weight: 800; margin: 4px 0; letter-spacing: -0.5px; }
     #review-score-sub  { font-size: 13px; color: var(--sub); }
-
-    #review-list {
-      flex: 1;
-      overflow-y: auto;
-      padding: 8px 12px;
-      -webkit-overflow-scrolling: touch;
-    }
+    #review-list { flex: 1; overflow-y: auto; padding: 8px 12px; -webkit-overflow-scrolling: touch; }
     .review-item {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 10px 12px;
-      border-radius: 12px;
-      margin-bottom: 6px;
-      background: var(--card);
-      border: 1px solid var(--border);
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 12px; border-radius: 12px; margin-bottom: 6px;
+      background: var(--card); border: 1px solid var(--border);
     }
     .review-item.correct-item { border-color: rgba(63,185,80,0.2); }
     .review-item.wrong-item   { border-color: rgba(248,81,73,0.15); }
@@ -241,21 +222,13 @@
     .review-name { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .review-code { font-size: 10px; color: var(--sub); margin-top: 1px; }
     .review-pct  { font-size: 15px; font-weight: 700; flex-shrink: 0; }
-
-    #review-footer {
-      padding: 10px 16px 20px;
-      flex-shrink: 0;
-    }
+    #review-footer { padding: 10px 16px 20px; flex-shrink: 0; }
     #btn-next-set {
       width: 100%; height: 54px;
-      background: #1a6fe8;
-      color: #fff;
-      border: none;
-      border-radius: 16px;
+      background: #1a6fe8; color: #fff;
+      border: none; border-radius: 16px;
       font-size: 16px; font-weight: 700;
-      cursor: pointer;
-      transition: filter 0.1s;
-      letter-spacing: 0.5px;
+      cursor: pointer; transition: filter 0.1s; letter-spacing: 0.5px;
     }
     #btn-next-set:active { filter: brightness(1.15); }
   </style>
@@ -277,42 +250,41 @@
   <div id="main-card">
     <div id="loading"><div class="spinner"></div>チャートを準備中...</div>
     <div id="ma-legend">
-      <div class="ma-item" style="color:var(--ma5)">
-        <div class="ma-line" style="background:var(--ma5)"></div>MA5
-      </div>
-      <div class="ma-item" style="color:var(--ma25)">
+      <div class="ma-item" style="color:var(--ma25)" onclick="toggleMA('MA25',this)">
         <div class="ma-line" style="background:var(--ma25)"></div>MA25
       </div>
-      <div class="ma-item" style="color:var(--ma75)">
+      <div class="ma-item" style="color:var(--ma75)" onclick="toggleMA('MA75',this)">
         <div class="ma-line" style="background:var(--ma75)"></div>MA75
       </div>
-      <div class="ma-item" style="color:var(--ma200)">
+      <div class="ma-item" style="color:var(--ma200)" onclick="toggleMA('MA200',this)">
         <div class="ma-line" style="background:var(--ma200)"></div>MA200
       </div>
     </div>
     <div class="swipe-label" id="label-up">UP ↑</div>
     <div class="swipe-label" id="label-down">↓ DOWN</div>
     <div id="chart"></div>
-    <div id="result-overlay">
-      <div id="r-emoji"></div>
-      <div id="r-text"></div>
-      <div id="r-pct"></div>
-      <div id="r-divider"></div>
-      <div id="r-stock"></div>
-      <div id="r-sub"></div>
-    </div>
   </div>
+</div>
+
+<!-- 結果パネル -->
+<div id="result-panel">
+  <div class="rp-row">
+    <span id="rp-verdict"></span>
+    <span id="rp-pct"></span>
+  </div>
+  <div id="rp-stock"></div>
+  <button id="btn-next" onclick="nextQuestion()">次の問題 →</button>
 </div>
 
 <!-- ボタン -->
 <div id="buttons">
   <button class="action-btn" id="btn-down" onclick="submitAnswer('down')" disabled>
     <span class="btn-main">↓ DOWN</span>
-    <span class="btn-sub">+10% 未満</span>
+    <span class="btn-sub">値下がり</span>
   </button>
   <button class="action-btn" id="btn-up" onclick="submitAnswer('up')" disabled>
     <span class="btn-main">UP ↑</span>
-    <span class="btn-sub">+10% 以上</span>
+    <span class="btn-sub">値上がり</span>
   </button>
 </div>
 
@@ -331,19 +303,28 @@
 
 <script>
 const SET_SIZE = 10;
+const activeMAs = new Set(['MA25', 'MA75', 'MA200']);
 let total = 0, correct = 0, streak = 0;
 let setCorrect = 0, setCount = 0;
 let setHistory = [];
-let currentQ   = null;
-let apexChart  = null;
+let currentQ  = null;
+let apexChart = null;
 let isAnswering = false;
 let nextQPromise = null;
 
-const card    = document.getElementById('main-card');
-const loading = document.getElementById('loading');
-const overlay = document.getElementById('result-overlay');
-const labelUp   = document.getElementById('label-up');
-const labelDown = document.getElementById('label-down');
+const card        = document.getElementById('main-card');
+const loading     = document.getElementById('loading');
+const labelUp     = document.getElementById('label-up');
+const labelDown   = document.getElementById('label-down');
+const resultPanel = document.getElementById('result-panel');
+const buttonsDiv  = document.getElementById('buttons');
+
+// ── MAトグル ──────────────────────────────────────────────────────────────────
+function toggleMA(name, el) {
+  if (activeMAs.has(name)) { activeMAs.delete(name); el.classList.add('off'); }
+  else                     { activeMAs.add(name);    el.classList.remove('off'); }
+  if (apexChart) apexChart.toggleSeries(name);
+}
 
 // ── スコア更新 ─────────────────────────────────────────────────────────────────
 function updateScore() {
@@ -356,7 +337,7 @@ function updateScore() {
 
 // ── データ取得 ─────────────────────────────────────────────────────────────────
 async function fetchQuestion() {
-  const res = await fetch('/api/question');
+  const res = await fetch('/api/question?t=' + Date.now());
   if (!res.ok) throw new Error('fetch failed');
   const d = await res.json();
   if (d.error) throw new Error(d.error);
@@ -365,13 +346,14 @@ async function fetchQuestion() {
 
 // ── チャート ──────────────────────────────────────────────────────────────────
 function buildOptions(q) {
+  const maxVol = Math.max(...q.volume.map(v => v.y), 1);
   return {
     series: [
-      { name: 'OHLC',  type: 'candlestick', data: q.candles },
-      { name: 'MA5',   type: 'line', data: q.ma5   },
-      { name: 'MA25',  type: 'line', data: q.ma25  },
-      { name: 'MA75',  type: 'line', data: q.ma75  },
-      { name: 'MA200', type: 'line', data: q.ma200 },
+      { name: 'OHLC',   type: 'candlestick', data: q.candles },
+      { name: 'MA25',   type: 'line', data: q.ma25   },
+      { name: 'MA75',   type: 'line', data: q.ma75   },
+      { name: 'MA200',  type: 'line', data: q.ma200  },
+      { name: 'Volume', type: 'bar',  data: q.volume },
     ],
     chart: {
       type: 'line', height: '100%', background: 'transparent',
@@ -379,36 +361,41 @@ function buildOptions(q) {
       zoom: { enabled: false }, selection: { enabled: false },
     },
     plotOptions: {
-      candlestick: {
-        colors: { upward: '#ef5350', downward: '#26a69a' },
-        wick: { useFillColor: true },
-      },
+      candlestick: { colors: { upward: '#ef5350', downward: '#26a69a' }, wick: { useFillColor: true } },
+      bar: { columnWidth: '100%' },
     },
-    // MA5=太め, MA25=中, MA75=細め, MA200=最細
-    colors: ['#26a69a', '#ff9f43', '#ffd32a', '#54a0ff', '#9b71ea'],
+    colors: ['#26a69a', '#ffd32a', '#54a0ff', '#9b71ea', '#3d4451'],
     stroke: {
-      width:     [1, 1.8, 1.5, 1.1, 0.9],
-      curve:     ['straight', 'smooth', 'smooth', 'smooth', 'smooth'],
-      dashArray: [0, 0, 0, 0, 0],
+      width: [1, 1.5, 1.1, 0.9, 0],
+      curve: ['straight', 'smooth', 'smooth', 'smooth', 'straight'],
     },
+    fill: { opacity: [1, 1, 1, 1, 0.5] },
     xaxis: {
       type: 'numeric',
       labels: { show: false }, axisTicks: { show: false },
       axisBorder: { show: false }, tooltip: { enabled: false },
     },
-    yaxis: {
-      opposite: true, tickAmount: 4,
-      labels: {
-        style: { colors: '#3d4451', fontSize: '10px' },
-        offsetX: -6,
-        formatter: v => {
-          if (v >= 100000) return (v/1000).toFixed(0)+'k';
-          if (v >= 10000)  return (v/1000).toFixed(1)+'k';
-          if (v >= 1000)   return (v/1000).toFixed(2)+'k';
-          return v.toFixed(0);
+    yaxis: [
+      {
+        seriesName: 'OHLC',
+        opposite: true, tickAmount: 4,
+        labels: {
+          style: { colors: '#3d4451', fontSize: '10px' },
+          offsetX: -6,
+          formatter: v => {
+            if (v >= 100000) return (v/1000).toFixed(0)+'k';
+            if (v >= 10000)  return (v/1000).toFixed(1)+'k';
+            if (v >= 1000)   return (v/1000).toFixed(2)+'k';
+            return v.toFixed(0);
+          },
         },
       },
-    },
+      { seriesName: 'MA25',   show: false },
+      { seriesName: 'MA75',   show: false },
+      { seriesName: 'MA200',  show: false },
+      { seriesName: 'Volume', show: false, min: 0, max: maxVol * 5 },
+    ],
+    plotOptions: { bar: { columnWidth: '100%' } },
     grid: {
       borderColor: 'rgba(255,255,255,0.035)',
       xaxis: { lines: { show: false } },
@@ -423,7 +410,7 @@ function buildOptions(q) {
         borderColor: 'rgba(255,200,80,0.3)',
         borderWidth: 1, strokeDashArray: 6,
         label: {
-          text: '予想',
+          text: '予想開始',
           position: 'top', orientation: 'horizontal',
           style: {
             color: 'rgba(255,200,80,0.5)', background: 'transparent',
@@ -436,37 +423,39 @@ function buildOptions(q) {
   };
 }
 
-function renderChart(q) {
+async function renderChart(q) {
   if (apexChart) { apexChart.destroy(); apexChart = null; }
-  apexChart = new ApexCharts(document.getElementById('chart'), buildOptions(q));
-  apexChart.render();
+  const el = document.getElementById('chart');
+  el.innerHTML = '';
+  apexChart = new ApexCharts(el, buildOptions(q));
+  await apexChart.render();
 }
 
 function revealChart(q) {
   if (!apexChart) return;
   apexChart.updateSeries([
-    { name: 'OHLC',  type: 'candlestick', data: [...q.candles, ...q.reveal_candles] },
-    { name: 'MA5',   type: 'line', data: q.ma5   },
-    { name: 'MA25',  type: 'line', data: q.ma25  },
-    { name: 'MA75',  type: 'line', data: q.ma75  },
-    { name: 'MA200', type: 'line', data: q.ma200 },
+    { name: 'OHLC',   type: 'candlestick', data: [...q.candles, ...q.reveal_candles] },
+    { name: 'MA25',   type: 'line', data: q.ma25  },
+    { name: 'MA75',   type: 'line', data: q.ma75  },
+    { name: 'MA200',  type: 'line', data: q.ma200 },
+    { name: 'Volume', type: 'bar',  data: [...q.volume, ...q.reveal_volume] },
   ]);
 }
 
 // ── 問題ロード ─────────────────────────────────────────────────────────────────
 async function loadQuestion(q) {
   currentQ = q;
-  overlay.style.display = 'none';
+  resultPanel.style.display = 'none';
+  buttonsDiv.style.display  = 'flex';
   loading.style.display = 'flex';
   loading.innerHTML = '<div class="spinner"></div>チャートを準備中...';
   document.getElementById('chart').style.visibility = 'hidden';
   setButtons(true);
   await new Promise(r => setTimeout(r, 30));
-  renderChart(q);
+  await renderChart(q);
   loading.style.display = 'none';
   document.getElementById('chart').style.visibility = 'visible';
   setButtons(false);
-  nextQPromise = fetchQuestion().catch(() => null);
 }
 
 function setButtons(d) {
@@ -481,11 +470,9 @@ async function submitAnswer(answer) {
   setButtons(true);
 
   const isCorrect = answer === currentQ.answer;
-  total++;
-  setCount++;
+  total++; setCount++;
   if (isCorrect) { correct++; setCorrect++; streak++; } else { streak = 0; }
 
-  // 履歴に記録
   setHistory.push({
     isCorrect,
     stock_code: currentQ.stock_code,
@@ -493,7 +480,6 @@ async function submitAnswer(answer) {
     period:     currentQ.period,
     actual_pct: currentQ.actual_pct,
   });
-
   updateScore();
 
   // カードを飛ばす
@@ -502,7 +488,6 @@ async function submitAnswer(answer) {
   card.style.opacity = '0';
   await new Promise(r => setTimeout(r, 300));
 
-  // カードを戻す
   card.style.transition = 'none';
   card.style.transform  = '';
   card.style.opacity    = '1';
@@ -511,60 +496,52 @@ async function submitAnswer(answer) {
   // 未来チャートを表示
   revealChart(currentQ);
 
-  // 結果オーバーレイ
+  // 結果パネルを表示
   const pct  = currentQ.actual_pct;
   const sign = pct >= 0 ? '+' : '';
-  const isLast = setCount >= SET_SIZE;
+  resultPanel.className = isCorrect ? 'correct' : 'wrong';
+  document.getElementById('rp-verdict').textContent = isCorrect ? '✅ 正解！' : '❌ 不正解';
+  document.getElementById('rp-pct').textContent     = sign + pct + '%';
+  document.getElementById('rp-pct').style.color     = pct >= 0 ? '#ef5350' : '#26a69a';
+  document.getElementById('rp-stock').textContent   = `${currentQ.stock_code} ${currentQ.stock_name} · ${currentQ.period}`;
+  buttonsDiv.style.display  = 'none';
+  resultPanel.style.display = 'flex';
 
-  overlay.className = isCorrect ? 'correct' : 'wrong';
-  document.getElementById('r-emoji').textContent = isCorrect ? '✅' : '❌';
-  document.getElementById('r-text').textContent  = isCorrect ? '正解！' : '不正解';
-  document.getElementById('r-pct').textContent   = sign + pct + '%';
-  document.getElementById('r-pct').style.color   = pct >= 0 ? '#ef5350' : '#26a69a';
-  document.getElementById('r-stock').innerHTML   =
-    `${currentQ.stock_code} ${currentQ.stock_name}<br>${currentQ.period}`;
-  document.getElementById('r-sub').textContent   = isLast ? '振り返りへ...' : '次の問題へ...';
-  overlay.style.display = 'block';
+  // 次問題をプリフェッチ（1箇所のみ）
+  nextQPromise = fetchQuestion().catch(() => null);
+}
 
-  const nextQFetch = nextQPromise || fetchQuestion();
-  await new Promise(r => setTimeout(r, isLast ? 2800 : 2500));
-
-  overlay.style.display = 'none';
-
-  if (isLast) {
+// ── 次の問題 ──────────────────────────────────────────────────────────────────
+async function nextQuestion() {
+  if (setCount >= SET_SIZE) {
     showReview();
     return;
   }
+  resultPanel.style.display = 'none';
+  loading.style.display = 'flex';
+  loading.innerHTML = '<div class="spinner"></div>チャートを準備中...';
 
-  // 次問題へ
   let nextQ = null;
-  try { nextQ = await nextQFetch; } catch(e) {}
+  try { nextQ = await nextQPromise; } catch(e) {}
   if (!nextQ) try { nextQ = await fetchQuestion(); } catch(e) {}
 
   isAnswering = false;
-
   if (nextQ) {
     await loadQuestion(nextQ);
   } else {
-    loading.style.display = 'flex';
-    loading.innerHTML = '<div class="spinner"></div>データ再取得中...';
-    await new Promise(r => setTimeout(r, 2500));
-    try { const q = await fetchQuestion(); await loadQuestion(q); }
-    catch(e) { loading.innerHTML = '⚠️ 取得失敗。リロードしてください。'; }
+    loading.innerHTML = '⚠️ 取得失敗。リロードしてください。';
   }
 }
 
 // ── 振り返り画面 ──────────────────────────────────────────────────────────────
 function showReview() {
-  // スコアヘッダー
   const rate = Math.round(setCorrect / SET_SIZE * 100);
   document.getElementById('review-score-main').textContent = `${setCorrect} / ${SET_SIZE} 正解`;
   document.getElementById('review-score-sub').textContent  = `正解率 ${rate}%`;
 
-  // リスト
   const list = document.getElementById('review-list');
   list.innerHTML = '';
-  setHistory.forEach((h, i) => {
+  setHistory.forEach(h => {
     const sign = h.actual_pct >= 0 ? '+' : '';
     const item = document.createElement('div');
     item.className = `review-item ${h.isCorrect ? 'correct-item' : 'wrong-item'}`;
@@ -580,19 +557,17 @@ function showReview() {
     `;
     list.appendChild(item);
   });
-
   document.getElementById('review-screen').style.display = 'flex';
 }
 
 function startNextSet() {
-  // リセット
   setCount = 0; setCorrect = 0; streak = 0;
   setHistory = [];
   updateScore();
   document.getElementById('review-screen').style.display = 'none';
+  resultPanel.style.display = 'none';
+  buttonsDiv.style.display  = 'flex';
   isAnswering = false;
-
-  // 新しい問題を読み込む
   loading.style.display = 'flex';
   loading.innerHTML = '<div class="spinner"></div>チャートを準備中...';
   setButtons(true);
